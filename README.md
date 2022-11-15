@@ -5,6 +5,7 @@ A tool to **dump all the conversations** from all the channels from all the work
 Just get the value of the **cookie `d`** from your browser and pass it in the `--cookie` param.
 
 ```bash
+pip3 install -r requirements.txt
 python3 SlackDump.py --output-dir /tmp/slackdump --cookie xoxd-6DTKNJ/4[...]
 ```
 
@@ -19,5 +20,7 @@ cat /tmp/gitleaks_found.json | jq 'unique_by(.Match)' | jq '.[] | select(.Match 
 # Find secrets with trufflehog
 trufflehog filesystem --directory /tmp/slackdump --json [--only-verified]
 ```
+
+**TODO**: Add option to dump all files from all channels.
 
 Thanks to **[SlackPirate](https://github.com/emtunc/SlackPirate)** for the initial idea and research on Slack cookies.

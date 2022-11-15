@@ -8,6 +8,7 @@ import os
 import http
 from time import sleep
 from slack_sdk import WebClient
+from alive_progress import alive_bar
 
 # For debugging with proxy, add "ssl=context" in WebClient and "proxy='http://127.0.0.1:8080"
 #import ssl
@@ -116,25 +117,37 @@ def analyze_workspace(workspace_data, cookie, out_dir, types=""):
     
     client = WebClient(token=slack_token)
     client.headers["Cookie"] = f"d={cookie}"
-    client.headers["User-Agent"] =USER_AGENT
+    client.headers["User-Agent"] = USER_AGENT
     
     channels = []
+    files_info = []
     for t in ["public_channel","private_channel","mpim","im"]: #https://api.slack.com/methods/conversations.list
+        print(f"[+] Getting channels and filenames of type {t}...")
         channels_t = get_channels(client, types=t)
         if channels_t["ok"]:
             channels += channels_t["channels"]
+            with alive_bar(len(channels_t["channels"])) as bar:
+                for c in channels_t["channels"]:
+                    files_info += get_channel_files(client, c["id"])
+                    bar()
     
     print("[+] Getting users...")
     users = get_workspace_users(client)
 
-    print("[+] Getting channels...")
+   
     current_dir = f"{out_dir}/{workspace}"
     try:
         os.mkdir(current_dir)
     except FileExistsError:
         pass
+    
     with open(f"{current_dir}/0_users.txt", "w") as f:
         json.dump(users, f, indent=4)
+    
+    with open(f"{current_dir}/0_filenames.txt", "w") as f:
+        json.dump(files_info, f, indent=4)
+    
+    
     raw_file = f"{current_dir}/1_raw_msgs.txt"
 
     channels_info = {}
@@ -209,6 +222,18 @@ def get_workspace_users(client):
     
     return all_users
 
+
+def get_channel_files(client, channel_id, page=1):
+    """Get all the files of the workspace"""
+    
+    data_files = client.files_list(channel=channel_id, count=1000, page=page).data
+
+    all_files = data_files["files"]
+    while data_files.get("paging",{}).get("page", 0) < data_files.get("paging",{}).get("pages", 0):
+        data_files = client.conversations_history(client=client, channel_id=channel_id, page=data_files.get("paging",{}).get("page")+1).data
+        all_files += data_files["files"]
+    
+    return all_files
 
 
 def main():
